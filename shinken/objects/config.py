@@ -90,6 +90,16 @@ no_longer_used_txt = ('This parameter is not longer take from the main file, but
 not_interresting_txt = 'We do not think such an option is interesting to manage.'
 
 
+try:
+    from nodesetparse import process as nodeset_process
+    NODESETPARSE_IMPORT = {'correct': True,
+                           'msg': 'module was correctly loaded'}
+except ImportError, exc:
+    def nodeset_process(tmp):
+        return tmp
+    NODESETPARSE_IMPORT = {'correct': False,
+                               'msg': exc.message}
+
 class Config(Item):
     cache_path = "objects.cache"
     my_type = "config"
@@ -949,6 +959,16 @@ class Config(Item):
 #        self.read_config_buf(res)
 
     def read_config_buf(self, buf):
+
+        if NODESETPARSE_IMPORT['correct']:
+            # import succeeded
+            logger.info("[config] [nodesetparse] %s",
+                        NODESETPARSE_IMPORT['msg'])
+        else:
+            # import failed
+            logger.warning("[config] [nodesetparse] %s",
+                           NODESETPARSE_IMPORT['msg'])
+
         params = []
         objectscfg = {}
         types = self.__class__.configuration_types
@@ -1050,7 +1070,7 @@ class Config(Item):
                     value = ' '.join(elts[1:])
                     tmp[prop].append(value)
                 if tmp != {}:
-                    objects[type].append(tmp)
+                    objects[type].append(nodeset_process(tmp))
 
         return objects
 
