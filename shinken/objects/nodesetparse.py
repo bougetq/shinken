@@ -35,7 +35,6 @@ def process(obj):
                 if is_empty(obj[prop][i]):
                     del obj[prop][i]
 
-    print obj_list
     return obj_list
 
 def expand(value):
