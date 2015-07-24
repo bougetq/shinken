@@ -1072,7 +1072,7 @@ class Config(Item):
                     tmp[prop].append(value)
                 if tmp != {}:
                     try:
-                        objects[type].append(nodeset_process(tmp))
+                        objects[type].extend(nodeset_process(tmp))
                     except (SyntaxError, NodeSetParseError), exc:
                         msg = exc.message
                         msg += ': ' + ''.join(tmp['imported_from'])
