@@ -91,6 +91,7 @@ not_interresting_txt = 'We do not think such an option is interesting to manage.
 
 
 try:
+    from ClusterShell.NodeSet import NodeSetParseError
     from nodesetparse import process as nodeset_process
     NODESETPARSE_IMPORT = {'correct': True,
                            'msg': 'module was correctly loaded'}
@@ -1070,7 +1071,12 @@ class Config(Item):
                     value = ' '.join(elts[1:])
                     tmp[prop].append(value)
                 if tmp != {}:
-                    objects[type].append(nodeset_process(tmp))
+                    try:
+                        objects[type].append(nodeset_process(tmp))
+                    except (SyntaxError, NodeSetParseError), exc:
+                        msg = exc.message
+                        msg += ': ' + ''.join(tmp['imported_from'])
+                        self.add_error(msg)
 
         return objects
 
