@@ -63,6 +63,42 @@ class TestNodesetparse(ShinkenTest):
             expected_members.remove(host)
         self.assertEqual([], expected_members)
 
+    def test_simple_duplicate(self):
+        name_lst = ['h_3_' + str(i) for i in range(0, 3)]
+        expected_hosts = self.hosts_from_name_list(name_lst)
+        for host in expected_hosts:
+            self.assertIsNotNone(host)
+
+    def test_duplicate_matching_props(self):
+        name_lst = ['h_4_' + str(i) for i in range(0, 3)]
+        expected_hosts = self.hosts_from_name_list(name_lst)
+        for i in range(0, 3):
+            host = expected_hosts[i]
+            self.assertIsNotNone(host)
+            self.assertEqual(host.address, '127.0.4.' + str(i+1))
+
+    def test_nested_expand_in_duplicate(self):
+        name_lst = ['h_5_' + str(i) for i in range(0, 9)]
+        expected_hosts = self.hosts_from_name_list(name_lst)
+        for i in range(0, 9):
+            host = expected_hosts[i]
+            self.assertIsNotNone(host)
+            self.assertEqual(host.address, '127.0.5.' + str(i+1))
+
+    def test_nested_duplicate_in_expand(self):
+        name_lst = ['h_6_0', 'h_6_1']
+        hosts = self.hosts_from_name_list(name_lst)
+        name_lst = ['hg_6_0_' + str(i) for i in range(0, 10)]
+        hgs_0 = self.hostgroups_from_name_list(name_lst)
+        name_lst = ['hg_6_1_' + str(i) for i in range(0, 10)]
+        hgs_1 = self.hostgroups_from_name_list(name_lst)
+        for hg in hgs_0:
+            self.assertIsNotNone(hg)
+            self.assertIn(hosts[0], hg.members)
+        for hg in hgs_1:
+            self.assertIsNotNone(hg)
+            self.assertIn(hosts[1], hg.members)
+
     def test_expand_multi_line(self):
         name_lst = ['h_8_0', 'h_8_1', 'h_8_2']
         expected_members = self.hosts_from_name_list(name_lst)
@@ -72,6 +108,10 @@ class TestNodesetparse(ShinkenTest):
             self.assertIn(host, expected_members)
             expected_members.remove(host)
         self.assertEqual([], expected_members)
+
+    def test_empty_duplicate(self):
+        h_9_0 = self.hosts_from_name_list(['h_9_0'])[0]
+        self.assertEqual([], h_9_0.hostgroups)
 
 if __name__ == '__main__':
     unittest.main()

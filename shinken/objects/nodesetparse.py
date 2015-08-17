@@ -20,28 +20,32 @@ from ClusterShell.NodeSet import NodeSet
 import re
 
 EXPAND_MACRO_NAME = 'EXPAND'
+DUPLICATE_MACRO_NAME = 'DUPLICATE'
 
 def process(obj):
     """
     Main function of the module, returns a list of processed objects
 
+    Duplicates objects where there are duplicate macro-functions
     Expands every property according to ClusterShell.NodeSet syntax
     """
 
-    for prop in obj:
-        for i in range(0, len(obj[prop])):
-            obj[prop][i] = expand(obj[prop][i])
+    obj_lst = duplicate(obj)
+    for obj in obj_lst:
+        for prop in obj:
+            for i in range(0, len(obj[prop])):
+                obj[prop][i] = expand(obj[prop][i])
 
-            # Shinken is not a great fan of empty values
-            if is_empty(obj[prop][i]):
-                del obj[prop][i]
+                # Shinken is not a great fan of empty values
+                if is_empty(obj[prop][i]):
+                    del obj[prop][i]
 
     # Main debug
-    #print obj
-    return obj
+    #print obj_lst
+    return obj_lst
 
 def is_empty(value):
-    """Check wether or not value is only whitespaces (empty)"""
+    """Checks wether or not value is only whitespaces (empty)"""
     return re.match(r'^\s*$', value)
 
 def find_macro_func(macro_name, value):
@@ -151,3 +155,87 @@ def expand_nodeset(value, sep=','):
 
     # Shinken encodes in unicode itself, we cannot do it now
     return value.decode('UTF8')
+
+def copy_obj(obj):
+    """
+    Returns a semi-deep copy of an object like the ones shinken
+    provides to the function process.
+
+    Object must be like:
+    obj = {'prop1': [], 'prop2': [], ..., 'propN': []}
+    """
+    new_obj = {}
+    for prop in obj:
+        new_obj[prop] = obj[prop][:]
+    return new_obj
+
+def duplicate(obj):
+    """
+    Duplicate a shinken object on the macro matching the
+    DUPLICATE_MACRO_NAME.
+    """
+    clone_lst = []
+    obj_template = copy_obj(obj)
+    for prop in obj:
+        for i in range(0, len(obj[prop])):
+            start = 0
+            value = obj[prop][i]
+            macro = find_macro_func(DUPLICATE_MACRO_NAME, value)
+            reinit_once = False
+
+            while macro:
+                if not reinit_once:
+                    # re-init the prop
+                    obj_template[prop][i] = ''
+                    for clone in clone_lst:
+                        clone[prop][i] = ''
+
+                    reinit_once = True
+
+                # pfx = what is before the macro
+                pfx = value[start:start+macro['start']]
+
+                # Expands what needs to be expanded
+                values = expand(macro['args'])
+
+                # Find the different duplicate values
+                values = split_preserve(values)
+                # Remove useless whitespaces
+                values = [val.strip() for val in values]
+
+                for j in range(0, len(values)):
+                    # Add a clone if needed
+                    if j == len(clone_lst):
+                        clone_lst.append(copy_obj(obj_template))
+
+                    # Append the new_value
+                    clone_lst[j][prop][i] += pfx + values[j]
+
+                last_value = pfx + values[-1]
+
+                # More clone than values
+                for j in range(len(values), len(clone_lst)):
+                    clone_lst[j][prop][i] += last_value
+
+                # To deal with multiple duplicate macro
+                # on the same line of the same property
+                obj_template[prop][i] += last_value
+
+                # Move forward in value
+                start += macro['end'] + 1
+                macro = find_macro_func(DUPLICATE_MACRO_NAME, value[start:])
+
+            # No more macros
+            if reinit_once:
+                # We re-inited the prop => append what is left of the value
+                for clone in clone_lst:
+                    clone[prop][i] += value[start:]
+
+                # Need to append it to the template too for future clones
+                obj_template[prop][i] += value[start:]
+
+    if clone_lst == []:
+        # There was no duplicate macro => return [obj]
+        clone_lst.append(obj)
+
+    return clone_lst
