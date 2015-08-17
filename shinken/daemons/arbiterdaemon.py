@@ -345,6 +345,8 @@ class Arbiter(Daemon):
 
         # Maybe conf is already invalid
         if not self.conf.conf_is_correct:
+            self.conf.show_errors()
+
             sys.exit("***> One or more problems was encountered "
                      "while processing the config files...")
 
